@@ -55,4 +55,27 @@ def build_message(all_articles):
     ]
     for category, articles in all_articles.items():
         icon = ICONS[category]
-        l
+        lines = [f"*{icon} {category}*"]
+        for i, a in enumerate(articles, 1):
+            lines.append(f"{i}. {a['title']}")
+            if a['link']:
+                lines.append(f"   🔗 {a['link']}")
+        blocks.append({"type": "section",
+                       "text": {"type": "mrkdwn",
+                                "text": "\n".join(lines)}})
+        blocks.append({"type": "divider"})
+    return {"blocks": blocks}
+
+def post_to_slack(payload):
+    res = requests.post(SLACK_WEBHOOK_URL, json=payload)
+    res.raise_for_status()
+    print("Slack投稿完了！")
+
+if __name__ == "__main__":
+    all_articles = {}
+    for category, urls in FEEDS.items():
+        articles = fetch_category(category, urls)
+        all_articles[category] = articles
+        print(f"{category}: {len(articles)}本取得")
+    payload = build_message(all_articles)
+    post_to_slack(payload)
