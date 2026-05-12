@@ -1,45 +1,53 @@
-import feedparser, requests, os
+import feedparser, requests, os, re
 from datetime import datetime
 
 SLACK_WEBHOOK_URL = os.environ["SLACK_WEBHOOK_URL"]
 
 FEEDS = {
     "デザイン": [
-        "https://www.designweek.co.uk/feed/",
-        "https://www.creativebloq.com/feed",
-        "https://www.dezeen.com/feed/",
-        "https://www.itsnicethat.com/feed",
-        "https://www.awwwards.com/blog/feed/",
+        "https://www.advertimes.com/feed/",
+        "https://ascii.jp/rss.xml",
+        "https://www.fashionsnap.com/feed/",
+        "https://designassociation.jp/feed/",
+        "https://note.com/hashtag/デザイン?format=rss",
     ],
     "ファッション": [
-        "https://wwd.com/feed/",
-        "https://www.voguebusiness.com/rss",
-        "https://www.businessoffashion.com/rss/news.rss",
+        "https://www.fashionsnap.com/feed/",
+        "https://www.vogue.co.jp/feed/rss",
         "https://jp.fashionnetwork.com/rss/news.xml",
-        "https://hypebeast.com/feed",
+        "https://hypebeast.com/jp/feed",
+        "https://www.elle.com/jp/rss/all.xml/",
     ],
     "政治経済": [
         "https://www3.nhk.or.jp/rss/news/cat4.xml",
-        "https://feeds.reuters.com/reuters/JPBusinessNews",
-        "https://www.bloomberg.co.jp/feeds/bbiz.rss",
-        "https://toyokeizai.net/list/feed/rss",
         "https://www3.nhk.or.jp/rss/news/cat6.xml",
+        "https://toyokeizai.net/list/feed/rss",
+        "https://www.nhk.or.jp/rss/news/cat5.xml",
+        "https://feeds.feedburner.com/businessinsider-japan",
     ],
 }
 
 ICONS = {"デザイン": "🎨", "ファッション": "👗", "政治経済": "📊"}
+
+# 会員限定・有料記事を除外するキーワード
+BLOCK_KEYWORDS = ["会員限定", "有料", "プレミアム", "登録が必要", "サブスクリプション"]
+
+def is_free_article(title, summary=""):
+    text = title + summary
+    return not any(kw in text for kw in BLOCK_KEYWORDS)
 
 def fetch_category(category, feed_urls):
     articles = []
     for url in feed_urls:
         try:
             feed = feedparser.parse(url)
-            if feed.entries:
-                entry = feed.entries[0]
-                articles.append({
-                    "title": entry.get("title", "（タイトルなし）"),
-                    "link":  entry.get("link", ""),
-                })
+            for entry in feed.entries[:3]:  # 各フィードから最大3件チェック
+                title = entry.get("title", "（タイトルなし）")
+                summary = entry.get("summary", "")
+                link = entry.get("link", "")
+                if is_free_article(title, summary):
+                    articles.append({"title": title, "link": link})
+                    break  # 1フィードから1本取得できたら次へ
         except Exception as e:
             print(f"RSS取得エラー ({url}): {e}")
     return articles
