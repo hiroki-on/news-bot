@@ -1,4 +1,4 @@
-import feedparser, requests, os, re
+import feedparser, requests, os
 from datetime import datetime
 
 SLACK_WEBHOOK_URL = os.environ["SLACK_WEBHOOK_URL"]
@@ -7,9 +7,9 @@ FEEDS = {
     "デザイン": [
         "https://www.advertimes.com/feed/",
         "https://ascii.jp/rss.xml",
-        "https://www.fashionsnap.com/feed/",
         "https://designassociation.jp/feed/",
         "https://note.com/hashtag/デザイン?format=rss",
+        "https://www.cinra.net/feed/",
     ],
     "ファッション": [
         "https://www.fashionsnap.com/feed/",
@@ -25,12 +25,22 @@ FEEDS = {
         "https://www.nhk.or.jp/rss/news/cat5.xml",
         "https://feeds.feedburner.com/businessinsider-japan",
     ],
+    "AI関連": [
+        "https://ai-scholar.tech/feed",
+        "https://ledge.ai/feed/",
+        "https://ainow.ai/feed/",
+        "https://www.itmedia.co.jp/aiplus/rss/2.0/index.rdf",
+        "https://gigazine.net/news/rss_2.0/",
+    ],
 }
 
-ICONS = {"デザイン": "🎨", "ファッション": "👗", "政治経済": "📊"}
+ICONS = {"デザイン": "🎨", "ファッション": "👗", "政治経済": "📊", "AI関連": "🤖"}
 
 # 会員限定・有料記事を除外するキーワード
-BLOCK_KEYWORDS = ["会員限定", "有料", "プレミアム", "登録が必要", "サブスクリプション"]
+BLOCK_KEYWORDS = [
+    "会員限定", "有料", "プレミアム", "登録が必要",
+    "サブスクリプション", "購読", "ログインが必要"
+]
 
 def is_free_article(title, summary=""):
     text = title + summary
@@ -41,7 +51,7 @@ def fetch_category(category, feed_urls):
     for url in feed_urls:
         try:
             feed = feedparser.parse(url)
-            for entry in feed.entries[:3]:  # 各フィードから最大3件チェック
+            for entry in feed.entries[:5]:  # 各フィードから最大5件チェックして無料記事を探す
                 title = entry.get("title", "（タイトルなし）")
                 summary = entry.get("summary", "")
                 link = entry.get("link", "")
@@ -54,10 +64,11 @@ def fetch_category(category, feed_urls):
 
 def build_message(all_articles):
     today = datetime.now().strftime("%Y年%m月%d日（%a）")
+    total = sum(len(v) for v in all_articles.values())
     blocks = [
         {"type": "header", "text": {
             "type": "plain_text",
-            "text": f"📰 今日のニュース｜{today}"
+            "text": f"📰 今日のニュース｜{today}（計{total}本）"
         }},
         {"type": "divider"}
     ]
